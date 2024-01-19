@@ -1,3 +1,11 @@
+Here we share the code for 
+
+Task-driven neural network models predict neural dynamics of proprioception
+by Alessandro Marin Vargas*, Axel Bisi*, Alberto Chiappa, Chris Versteeg, Lee Miller,  Alexander Mathis
+
+It builds on ...
+
+
 # Contrasting action and posture coding with hierarchical deep neural network models of proprioception
 
 This repository contains code for the manuscript ["Contrasting action and posture coding with hierarchical deep neural network models of proprioception"](https://elifesciences.org/articles/81499), by Kai J Sandbrink*, Pranav Mamidanna*, Claudio Michaelis, Matthias Bethge, Mackenzie W Mathis** and Alexander Mathis** eLife 2023. A preprint was available since [2020](https://www.biorxiv.org/content/10.1101/2020.05.06.081372v1).
