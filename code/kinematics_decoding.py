@@ -1,7 +1,7 @@
 import os
 import sys
-from nn_models import ConvModel, RecurrentModel, AffineModel
-from nn_rmodels import ConvRModel, RecurrentRModel
+from nn_models import ConvModel, RecurrentModel
+from nn_rmodels_w_outputs import ConvRModel, RecurrentRModel
 
 import numpy as np
 import pandas as pd
@@ -9,15 +9,16 @@ import yaml
 import tensorflow as tf
 import h5py
 # from scipy.stats import mode
-# from scipy.spatial.distance import pdist, squareform
+from scipy.spatial.distance import pdist, squareform
 
+gpu_options = tf.GPUOptions() #per_process_gpu_memory_fraction=0.4)
 
 def load_model(meta_data, experiment_id, model_type, is_trained):
-    '''Load a trained `ConvModel`, `AffineModel` or `RecurrentModel` object.
+    '''Load a trained `ConvModel` or `RecurrentModel` object.
 
     Returns
     -------
-    model : an instance of `ConvModel`, `AffineModel` or `RecurrentModel`
+    model : an instance of `ConvModel` or `RecurrentModel`
 
     '''
     if model_type == 'conv':
@@ -62,14 +63,11 @@ def load_model(meta_data, experiment_id, model_type, is_trained):
 
     return model
 
-
-def load_rmodel(meta_data, experiment_id, model_type, is_trained):
+def load_rmodel(meta_data, experiment_id, model_type, is_trained): #, n_outputs):
     '''Load a trained `ConvRModel`, `RecurrentRModel` object.
-
     Returns
     -------
     model : an instance of `ConvRModel` or `RecurrentRModel`
-
     '''
     if model_type == 'conv':
         
@@ -89,7 +87,8 @@ def load_rmodel(meta_data, experiment_id, model_type, is_trained):
             s_stride=int(meta_data['s_stride']),
             t_stride=int(meta_data['t_stride']),
             seed=myseed,
-            train=is_trained)
+            train=is_trained) #,
+            # n_outputs = int(n_outputs))
     
     if model_type == 'rec':
         
@@ -118,7 +117,7 @@ def set_layer_dimensions(representations, model_type, layer_name):
     Arguments
     ---------
     representations : np.array, whose dimensions must be changed
-    model_type : str {conv, affine, recurrent}
+    model_type : str {conv, recurrent}
     layer_name : str, name of the layer retrieved from basename of representations file
 
     '''
@@ -147,10 +146,11 @@ def set_kin_dimensions(kinematics, n_out_timesteps):
 
     '''
     n_examples, n_dims, n_timesteps = kinematics.shape
-    assert n_timesteps == 320, "Kinematics shape mismatch. Please revise."
-    skip_idx = n_timesteps // (n_out_timesteps - 1)
+    assert n_timesteps == 400, "Kinematics shape mismatch. Please revise."
+    #### REMEMBER YOU ADD -1
+    skip_idx = (n_timesteps - 1) // (n_out_timesteps - 1)
     kinematics = kinematics[:, :, ::skip_idx]
-    assert kinematics.shape[-1] == n_out_timesteps
+    assert kinematics.shape[-1] == n_out_timesteps, "Whaatt!"   ### If stride is higher than last layer size
     return kinematics.transpose(0, 2, 1)
 
 
@@ -210,13 +210,9 @@ def generate_layerwise_representations(model, data, batch_size, repfile_name):
 
     with tf.Graph().as_default():
         X = tf.placeholder(tf.float32, myshape, name="X")
-        name = type(model).__name__
-        if name == 'ConvModel' or name == 'RecurrentModel':
-            _, _, output = model.predict(X, is_training=False)
-        elif name == 'ConvRModel' or name == 'RecurrentRModel':
-            _, output = model.predict(X, is_training=False)
+        _, _, output = model.predict(X, is_training=False)
         restorer = tf.train.Saver()
-        myconfig = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+        myconfig = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True, gpu_options = gpu_options)
 
         with tf.Session(config=myconfig) as sess:
             ckpt_filepath = os.path.join(model.model_path, 'model.ckpt')
