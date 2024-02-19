@@ -9,12 +9,17 @@ import yaml
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python import pywrap_tensorflow
 
+from path_utils import MODELS_DIR
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+
+gpu_options = tf.GPUOptions(allow_growth=True) #per_process_gpu_memory_fraction=0.33, allow_growth=True) #per_process_gpu_memory_fraction=0.9)
 
 class Dataset():
     """Defines a dataset object with simple routines to generate batches."""
 
-    def __init__(self, path_to_data=None, data=None, dataset_type='train', key='spindle_firing', fraction=None):
+    def __init__(self, path_to_data=None, path_to_val=None, data=None, dataset_type='train', key='spindle_firing', fraction=None):
         """Set up the `Dataset` object.
 
         Arguments
@@ -25,19 +30,14 @@ class Dataset():
 
         """
         self.path_to_data = path_to_data
+        self.path_to_val = path_to_val
         self.dataset_type = dataset_type
         self.key = key
         self.train_data = self.train_labels = None
         self.val_data = self.val_labels = None
         self.test_data = self.test_data = None
         self.make_data(data)
-
-        # For when I want to use only a fraction of the dataset to train!
-        if fraction is not None:
-            random_idx = np.random.permutation(self.train_data.shape[0])
-            subset_num = int(fraction * random_idx.size)
-            self.train_data = self.train_data[random_idx[:subset_num]]
-            self.train_labels = self.train_labels[random_idx[:subset_num]]
+        self.fraction = fraction
 
     def make_data(self, mydata):
         """Load train/val or test splits into the `Dataset` instance.
@@ -50,23 +50,24 @@ class Dataset():
         """
         # Load and shuffle dataset randomly before splitting
         if self.path_to_data is not None:
-            with h5py.File(self.path_to_data, 'r') as datafile:
-                data = datafile[self.key][()]
-                labels = datafile['label'][()] - 1
+            datafile = h5py.File(self.path_to_data, 'r')
+            if self.dataset_type == 'train':
+                self.train_data = datafile[self.key]
+                self.train_labels = datafile['label']
+                self.train_data_mean = datafile['train_data_mean']
+                datafile_val = h5py.File(self.path_to_val, 'r')
+                self.val_data = datafile_val[self.key]
+                self.val_labels = datafile_val['label']
+            elif self.dataset_type == 'test':
+                self.test_data = datafile[self.key]
+                self.test_labels = datafile['label']
+
         else: 
             data = mydata['data']
             labels = mydata['labels'] - 1
 
-        # For training data, create training and validation splits
-        if self.dataset_type == 'train':
-            self.train_data, self.train_labels, self.val_data, self.val_labels = train_val_split(
-                data, labels)
 
-        # For test data, do not split
-        elif self.dataset_type == 'test':
-            self.test_data, self.test_labels = data, labels
-
-    def next_trainbatch(self, batch_size, step=0):
+    def next_trainbatch(self, batch_size, step=0, normalize = False):
         """Returns a new batch of training data.
 
         Arguments
@@ -80,15 +81,16 @@ class Dataset():
 
         """
         if step == 0:
-            shuffle_idx = np.random.permutation(self.train_data.shape[0])
-            self.train_data = self.train_data[shuffle_idx]
-            self.train_labels = self.train_labels[shuffle_idx]
-        mybatch_data = self.train_data[batch_size*step:batch_size*(step+1)]
-        mybatch_labels = self.train_labels[batch_size*step:batch_size*(step+1)]
+            steps_per_epoch = self.train_data.shape[0] // batch_size
+            total_len = batch_size*steps_per_epoch
+            poss_position = np.arange(0,total_len,batch_size)
+            self.shuffle_idx = np.random.permutation(poss_position)
+        mybatch_data = self.train_data[self.shuffle_idx[step]:self.shuffle_idx[step]+batch_size].astype('float32') 
+        mybatch_labels = self.train_labels[self.shuffle_idx[step]:self.shuffle_idx[step]+batch_size] -1  #batch_size*step:batch_size*(step+1)
 
         return (mybatch_data, mybatch_labels)
 
-    def next_valbatch(self, batch_size, type='val', step=0):
+    def next_valbatch(self, batch_size, type='val', step=0, normalize = False):
         """Returns a new batch of validation or test data.
 
         Arguments
@@ -97,11 +99,11 @@ class Dataset():
 
         """
         if type == 'val':
-            mybatch_data = self.val_data[batch_size*step:batch_size*(step+1)]
-            mybatch_labels = self.val_labels[batch_size*step:batch_size*(step+1)]
+            mybatch_data = self.val_data[batch_size*step:batch_size*(step+1)].astype('float32') 
+            mybatch_labels = self.val_labels[batch_size*step:batch_size*(step+1)] -1
         elif type == 'test':
-            mybatch_data = self.test_data[batch_size*step:batch_size*(step+1)]
-            mybatch_labels = self.test_labels[batch_size*step:batch_size*(step+1)]
+            mybatch_data = self.test_data[batch_size*step:batch_size*(step+1)].astype('float32') 
+            mybatch_labels = self.test_labels[batch_size*step:batch_size*(step+1)] -1
 
         return (mybatch_data, mybatch_labels)
 
@@ -109,7 +111,7 @@ class Dataset():
 class Trainer:
     """Trains a `Model` object with the given `Dataset` object."""
 
-    def __init__(self, model=None, dataset=None, global_step=None):
+    def __init__(self, model=None, dataset=None, test_dataset=None, global_step=None):
         """Set up the `Trainer`.
 
         Arguments
@@ -120,14 +122,42 @@ class Trainer:
         """
         self.model = model
         self.dataset = dataset
+        self.test_dataset = test_dataset
         self.log_dir = model.model_path
-        self.global_step = 0 if global_step == None else global_step
+        self.global_step = 0 if global_step is None else global_step
         self.session = None
         self.graph = None
         self.best_loss = 1e10
         self.validation_accuracy = 0
 
-    def build_graph(self):
+    def get_tensors_in_checkpoint_file(self, file_name,all_tensors=True,tensor_name=None):
+        varlist=[]
+        var_value =[]
+        reader = pywrap_tensorflow.NewCheckpointReader(file_name)
+        if all_tensors:
+            var_to_shape_map = reader.get_variable_to_shape_map()
+            for key in sorted(var_to_shape_map):
+                varlist.append(key)
+                var_value.append(reader.get_tensor(key))
+        else:
+            varlist.append(tensor_name)
+            var_value.append(reader.get_tensor(tensor_name))
+        return (varlist, var_value)
+    
+    def build_tensors_in_checkpoint_file(self, loaded_tensors):
+        full_var_list = list()
+        # Loop all loaded tensors
+        for i, tensor_name in enumerate(loaded_tensors[0]):
+            # Extract tensor
+            if not 'Classifier' in tensor_name:
+                try:
+                    tensor_aux = self.graph.get_tensor_by_name(tensor_name+":0")
+                    full_var_list.append(tensor_aux)
+                except:
+                    print('Not found: '+tensor_name)
+        return full_var_list
+
+    def build_graph(self, **kwargs):
         """Build training graph using the `Model`s predict function and setting up an optimizer."""
         
         _, ninputs, ntime, _ = self.dataset.train_data.shape
@@ -155,6 +185,11 @@ class Trainer:
             
             self.init = tf.global_variables_initializer()
             self.saver = tf.train.Saver()
+            if not len(kwargs) == 0:
+                varlist = self.get_tensors_in_checkpoint_file(file_name=kwargs['log_dir'],all_tensors=True,tensor_name=None)
+                variables = self.build_tensors_in_checkpoint_file(varlist)
+                
+                self.loader = tf.train.Saver(variables)
 
     def load(self):
         self.saver.restore(self.session, os.path.join(self.log_dir, 'model.ckpt'))
@@ -162,13 +197,95 @@ class Trainer:
     def save(self):
         self.saver.save(self.session, os.path.join(self.log_dir, 'model.ckpt'))
 
+    def save_step(self,step):
+        self.saver.save(self.session, os.path.join(self.log_dir, 'model_' + str(step) + '.ckpt'))
+    
+    def load_step(self, step):
+        self.saver.restore(self.session, os.path.join(self.log_dir, 'model_' + str(step) + '.ckpt'))
+
+    def normalization(self):
+
+        def repeat_batch(vector, batch_size, t_size):
+            vector.resize((1,vector.shape[0],1))
+            vector = np.repeat(vector, batch_size, axis = 0)
+            vector = np.repeat(vector, t_size, axis = 2)
+            return vector
+            
+        t_size = self.dataset.train_data.shape[2]
+        self.minn_all_muscle = repeat_batch(self.minn_all_muscle, self.batch_size, t_size)
+        self.maxx_all_muscle = repeat_batch(self.maxx_all_muscle, self.batch_size, t_size)
+        self.minn_all_vel = repeat_batch(self.minn_all_vel, self.batch_size, t_size)
+        self.maxx_all_vel = repeat_batch(self.maxx_all_vel, self.batch_size, t_size)
+
+        divider_mus = (self.maxx_all_muscle - self.minn_all_muscle)
+        divider_mus[divider_mus == 0] = 1
+
+        divider_vel = (self.maxx_all_vel - self.minn_all_vel)
+        divider_vel[divider_vel == 0] = 1
+        return divider_mus, divider_vel
+    
+    def make_model_name(self):
+        if (type(self.model).__name__ == 'ConvModel'):
+            # Make model name
+            if self.model.arch_type == 'spatial_temporal':
+                kernels = ('-'.join(str(i) for i in self.model.n_skernels)) + '_' + ('-'.join(str(i) for i in self.model.n_tkernels))
+            elif self.model.arch_type == 'temporal_spatial':
+                kernels = ('-'.join(str(i) for i in self.model.n_tkernels)) + '_' + ('-'.join(str(i) for i in self.model.n_skernels))
+            else:
+                kernels = ('-'.join(str(i) for i in self.model.n_skernels))
+
+            parts_name = [self.model.arch_type, str(self.model.nlayers), kernels,
+                        ''.join(str(i) for i in [self.model.s_kernelsize, self.model.s_stride, self.model.t_kernelsize, self.model.t_stride])]
+
+            # Create model directory
+            name = '_'.join(parts_name)
+        elif (type(self.model).__name__ == 'ConvModel_new'):
+
+            max_tstride = self.model.t_stride.count(2)**2
+            max_sstride = self.model.s_stride.count(2)**2
+            # Make model name
+            if self.model.arch_type == 'spatial_temporal':
+                kernels = ('-'.join(str(i) for i in self.model.n_skernels)) + '_' + ('-'.join(str(i) for i in self.model.n_tkernels))
+            elif self.model.arch_type == 'temporal_spatial':
+                kernels = ('-'.join(str(i) for i in self.model.n_tkernels)) + '_' + ('-'.join(str(i) for i in self.model.n_skernels))
+            else:
+                kernels = ('-'.join(str(i) for i in self.model.n_skernels))
+
+            parts_name = [self.model.arch_type, str(self.model.nlayers), kernels,
+                        ''.join(str(i) for i in [self.model.s_kernelsize, max_sstride, self.model.t_kernelsize, max_tstride])]
+
+            # Create model directory
+            name = '_'.join(parts_name)
+        elif (type(self.model).__name__ == 'RecurrentModel'):
+            # Make model name
+            units = ('-'.join(str(i) for i in self.model.nppfilters))
+            parts_name = [self.model.rec_blocktype, str(self.model.npplayers), units, str(self.model.n_recunits)]
+
+            # Create model directory
+            name = '_'.join(parts_name)
+            if self.model.seed is not None: name += '_' + str(self.model.seed)
+        elif (type(self.model).__name__ == 'RecurrentModel_new'):
+            max_sstride = self.s_stride.count(2)**2
+        
+            # Make model name
+            units = ('-'.join(str(i) for i in nppfilters))
+            parts_name = [rec_blocktype, str(n_reclayers), str(npplayers), units, str(n_recunits),
+                        ''.join(str(i) for i in [s_kernelsize, max_sstride])]
+
+            # Create model directory
+            name = '_'.join(parts_name)
+            if self.model.seed is not None: name += '_' + str(self.model.seed)
+        return name
+
     def train(self,
             num_epochs=10,
             learning_rate=0.0005,
             batch_size=256,
-            val_steps=100,
-            early_stopping_epochs=5,
+            val_steps=200,
+            early_stopping_epochs=1,
             retrain=False,
+            retrain_same_init=False,
+            old_exp_dir = None,
             normalize=False,
             verbose=True, 
             save_rand=False):
@@ -190,35 +307,59 @@ class Trainer:
         max_iter = num_epochs * steps_per_epoch
         early_stopping_steps = early_stopping_epochs * steps_per_epoch
         self.batch_size = batch_size
+        self.normalize = normalize
 
-        if normalize:
-            self.train_data_mean = float(np.mean(self.dataset.train_data))
-            self.train_data_std = float(np.std(self.dataset.train_data))
+        if self.normalize:
+            self.train_data_mean = float(self.dataset.train_data_mean)
+            self.train_data_std = 0 #float(np.std(self.dataset.train_data))
         else:
             self.train_data_mean = self.train_data_std = 0
         train_params = {'train_mean': self.train_data_mean,
                         'train_std': self.train_data_std}
         val_params = {'validation_loss': 1e10, 'validation_accuracy': 0}
+        test_params = {'test_accuracy': 0}
 
-        self.build_graph()
-        self.session = tf.Session(graph=self.graph)
+        if retrain_same_init:
+            old_exp_dir = os.path.join(MODELS_DIR,'experiment_' + str(old_exp_dir))
+            name = self.make_model_name()
+            log_dir = os.path.join(old_exp_dir, name)
+            log_dir = os.path.join(log_dir, 'model_0.ckpt')
+            self.build_graph(log_dir = log_dir)
+        else:
+            self.build_graph()
 
-        # with self.graph.as_default():
+        self.session = tf.Session(graph=self.graph, config=tf.ConfigProto(gpu_options=gpu_options))
+
         self.session.run(self.init)
         if retrain:
             self.load()
-        
+
+        if retrain_same_init:
+            self.loader.restore(self.session, log_dir)
+
         if save_rand:
-            self.save()
+            self.save_step(0)
             self.model.is_training = False
-            make_config_file(self.model, train_params, val_params)
-            self.session.close()
-            return
+            make_config_file(self.model, train_params, val_params, test_params, step = self.global_step) #, save_rand)
 
         # Create summaries
         self.train_summary = tf.summary.FileWriter(
             os.path.join(self.model.model_path, 'train'), graph=self.graph, flush_secs=30)
         self.val_summary = tf.summary.FileWriter(os.path.join(self.model.model_path, 'val'))
+
+        # Define checkpoints
+        try:
+            if self.model.rec_blocktype == 'lstm':
+                if batch_size == 512:
+                    check1, check2, check3 = 5000, 10000, 15000
+                else:
+                    check1, check2, check3 = 10000, 20000, 30000
+        except:
+            if (self.model.arch_type == 'spatial_temporal') or (self.model.arch_type == 'temporal_spatial') or (self.model.arch_type == 'spatiotemporal'):
+                if batch_size == 512:
+                    check1, check2, check3 = 1000, 2500, 5000
+                else:
+                    check1, check2, check3 = 2000, 5000, 10000
 
         not_improved = 0
         end_training = 0
@@ -229,6 +370,7 @@ class Trainer:
             # Training step
             batch_X, batch_y = self.dataset.next_trainbatch(
                 batch_size, self.global_step % steps_per_epoch)
+
             feed_dict = {self.X: batch_X - self.train_data_mean,
                         self.y: batch_y, 
                         self.learning_rate: learning_rate}
@@ -237,9 +379,11 @@ class Trainer:
             # Validate/save periodically
             if self.global_step % val_steps == 0:
                 # Summarize, print progress
+                # train_params['step'] = self.global_step
                 loss_val, acc_val = self.save_summary(feed_dict)
                 if verbose:
                     print('Step : %4d, Validation Accuracy : %.2f' % (self.global_step, acc_val))
+                    print('best_loss:', self.best_loss, 'loss:', loss_val)
 
                 if loss_val < self.best_loss:
                     self.best_loss = loss_val
@@ -260,14 +404,23 @@ class Trainer:
                     self.load()
 
                 if end_training == 2:
-                    if self.global_step < 40*steps_per_epoch:
+                    if self.global_step < 20*steps_per_epoch:
                         end_training = 1
                         not_improved = 0
                     else:
                         break
 
+            if (self.global_step == check1) or (self.global_step == check2) or (self.global_step == check3):
+                self.save_step(self.global_step)
+                make_config_file(self.model, train_params, val_params, test_params, step = self.global_step)
+
         self.model.is_training = False
-        make_config_file(self.model, train_params, val_params)
+
+        ### Test the network
+        test_accuracy = self.test_model()
+        test_params = {'test_accuracy': float(test_accuracy)}
+
+        make_config_file(self.model, train_params, val_params, test_params) #, False)  #train_params
         self.session.close()
 
     def save_summary(self, feed_dict):
@@ -296,9 +449,33 @@ class Trainer:
         loss_val = np.zeros(num_iter)
         for i in range(num_iter):
             batch_X, batch_y = self.dataset.next_valbatch(self.batch_size, step=i)
-            feed_dict = {self.X: batch_X - self.train_data_mean, self.y: batch_y}
+
+            feed_dict = {self.X: batch_X - self.train_data_mean, 
+                        self.y: batch_y}
             loss_val[i], acc_val[i] = self.session.run([self.val_loss_op, self.accuracy_op], feed_dict)
+
         return loss_val.mean(), acc_val.mean()
+    
+    def test_model(self):
+        """Evaluate test performance.
+        
+        Returns
+        -------
+        test_accuracy : float, accuracy on the test data
+        
+        """
+        num_iter = self.test_dataset.test_data.shape[0] // self.batch_size
+        self.load()
+        # acc_test = np.zeros(num_iter)
+        acc_test = []
+        for i in range(num_iter):
+            batch_X, batch_y = self.test_dataset.next_valbatch(self.batch_size, 'test', step=i)
+
+            feed_dict = {self.X: batch_X - self.train_data_mean, 
+                        self.y: batch_y}
+            acc = self.session.run([self.accuracy_op], feed_dict)
+            acc_test.append(acc)
+        return np.mean(acc_test)
 
 
 def evaluate_model(model, dataset, batch_size=200):
@@ -338,15 +515,17 @@ def evaluate_model(model, dataset, batch_size=200):
 
         # Test the `model`!
         restorer = tf.train.Saver()
-        myconfig = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+        myconfig = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True, gpu_options = gpu_options)
         with tf.Session(config=myconfig) as sess:
             ckpt_filepath = os.path.join(model.model_path, 'model.ckpt')
             restorer.restore(sess, ckpt_filepath)
-            
+
             test_accuracy = []
             for step in range(num_steps):         
                 batch_x, batch_y = dataset.next_valbatch(batch_size, 'test', step)
-                acc = sess.run([accuracy], feed_dict={X: batch_x - train_mean, y: batch_y})
+
+                acc = sess.run([accuracy], feed_dict={X: batch_x - train_mean,
+                                                    y: batch_y})
                 test_accuracy.append(acc)
 
     return np.mean(test_accuracy)
@@ -362,7 +541,7 @@ def train_val_split(data, labels):
     return (train_data, train_labels, val_data, val_labels)
 
 
-def make_config_file(model, train_params, val_params):
+def make_config_file(model, train_params, val_params, test_params, **kwargs): #, rand_flag = False): #, val_params):
     """Make a configuration file for the given model, created after training.
 
     Given a `ConvModel`, `AffineModel` or `RecurrentModel` instance, generates a 
@@ -378,10 +557,15 @@ def make_config_file(model, train_params, val_params):
             mydict[key] = [int(item) for item in value]
 
     # Save yaml file in the model's path
-    path_to_yaml_file = os.path.join(model.model_path, 'config.yaml')
+    if len(kwargs) == 0:
+        path_to_yaml_file = os.path.join(model.model_path, 'config.yaml')
+    else:
+        path_to_yaml_file = os.path.join(model.model_path, 'config_' + str(kwargs['step']) + '.yaml')
+
     with open(path_to_yaml_file, 'w') as myfile:
         yaml.dump(mydict, myfile, default_flow_style=False)
         yaml.dump(train_params, myfile, default_flow_style=False)
         yaml.dump(val_params, myfile, default_flow_style=False)
+        yaml.dump(test_params, myfile, default_flow_style=False)
 
     return

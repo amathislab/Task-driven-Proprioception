@@ -1,16 +1,14 @@
-# Conda environment for data analysis of DeepDraw project
-#
-# install: conda env create -f environment.yml
-# update:  conda env update -f environment.yml
-
-name: DeepDraw
+name: deepdraw_github
 channels:
   - conda-forge
+  - anaconda
   - defaults
 dependencies:
+  - _anaconda_depends=2019.10=py37_0
   - _ipyw_jlab_nb_ext_conf=0.1.0=py37_0
+  - _libgcc_mutex=0.1=main
   - alabaster=0.7.12=py37_0
-  - anaconda=2018.12=py37_0
+  - anaconda=custom=py37_1
   - anaconda-client=1.7.2=py37_0
   - anaconda-navigator=1.9.6=py37_0
   - anaconda-project=0.8.2=py37_0
@@ -29,15 +27,14 @@ dependencies:
   - bkcharts=0.2=py37_0
   - blas=1.0=mkl
   - blaze=0.11.3=py37_0
-  - bleach=3.0.2=py37_0
   - blosc=1.14.4=hdbcaa40_0
   - bokeh=1.0.2=py37_0
   - boto=2.49.0=py37_0
   - bottleneck=1.2.1=py37h035aef0_1
   - bzip2=1.0.6=h14c3975_5
-  - ca-certificates=2018.03.07=0
+  - ca-certificates=2021.10.26=h06a4308_2
   - cairo=1.14.12=h8948797_3
-  - certifi=2018.11.29=py37_0
+  - certifi=2021.10.8=py37h06a4308_0
   - cffi=1.11.5=py37he75722e_1
   - chardet=3.0.4=py37_1
   - click=7.0=py37_0
@@ -72,6 +69,7 @@ dependencies:
   - fontconfig=2.13.0=h9420a91_0
   - freetype=2.9.1=h8a8886c_1
   - fribidi=1.0.5=h7b6447c_0
+  - fsspec=2021.8.1=pyhd3eb1b0_0
   - future=0.17.1=py37_0
   - get_terminal_size=1.0.0=haa9412d_0
   - gevent=1.3.7=py37h7b6447c_1
@@ -87,12 +85,10 @@ dependencies:
   - harfbuzz=1.8.8=hffaf4a1_0
   - hdf5=1.10.2=hba1933b_1
   - heapdict=1.0.0=py37_2
-  - html5lib=1.0.1=py37_0
   - icu=58.2=h9c2bf20_1
   - idna=2.8=py37_0
   - imageio=2.4.1=py37_0
   - imagesize=1.1.0=py37_0
-  - importlib_metadata=0.6=py37_0
   - intel-openmp=2019.1=144
   - ipykernel=5.1.0=py37h39e3cac_0
   - ipython=7.2.0=py37h39e3cac_0
@@ -105,7 +101,9 @@ dependencies:
   - jedi=0.13.2=py37_0
   - jeepney=0.4=py37_0
   - jinja2=2.10=py37_0
+  - joblib=1.1.0=pyhd3eb1b0_0
   - jpeg=9b=h024ee3a_2
+  - json5=0.9.6=pyhd3eb1b0_0
   - jsonschema=2.6.0=py37_0
   - jupyter=1.0.0=py37_7
   - jupyter_client=5.2.4=py37_0
@@ -139,7 +137,6 @@ dependencies:
   - lxml=4.2.5=py37hefd8a0e_0
   - lz4-c=1.8.1.2=h14c3975_0
   - lzo=2.10=h49e0be7_2
-  - markupsafe=1.1.0=py37h7b6447c_0
   - matplotlib=3.0.2=py37h5429711_0
   - mccabe=0.6.1=py37_1
   - mistune=0.8.4=py37h7b6447c_0
@@ -147,6 +144,7 @@ dependencies:
   - mkl-service=1.1.2=py37he904b0f_5
   - mkl_fft=1.0.6=py37hd81dba3_0
   - mkl_random=1.0.2=py37hd81dba3_0
+  - mock=4.0.3=pyhd3eb1b0_0
   - more-itertools=4.3.0=py37_0
   - mpc=1.1.0=h10f8cd9_1
   - mpfr=4.0.1=hdf1c602_3
@@ -163,15 +161,12 @@ dependencies:
   - notebook=5.7.4=py37_0
   - numba=0.41.0=py37h962f231_0
   - numexpr=2.6.8=py37h9e4a6bb_0
-  - numpy=1.15.4=py37h7e9f1db_0
-  - numpy-base=1.15.4=py37hde5b4d6_0
   - numpydoc=0.8.0=py37_0
   - odo=0.5.1=py37_0
   - olefile=0.46=py37_0
   - openpyxl=2.5.12=py37_0
-  - openssl=1.1.1a=h7b6447c_0
+  - openssl=1.1.1l=h7f8727e_0
   - packaging=18.0=py37_0
-  - pandas=0.23.4=py37h04863e7_0
   - pandoc=1.19.2.1=hea2e7c5_1
   - pandocfilters=1.4.2=py37_1
   - pango=1.42.4=h049681c_0
@@ -209,6 +204,7 @@ dependencies:
   - pyopenssl=18.0.0=py37_0
   - pyparsing=2.3.0=py37_0
   - pyqt=5.9.2=py37h05f1152_2
+  - pyrsistent=0.18.0=py37heee7806_0
   - pysocks=1.6.8=py37_0
   - pytables=3.4.4=py37ha205bf6_0
   - pytest=4.0.2=py37_0
@@ -230,15 +226,14 @@ dependencies:
   - qtpy=1.5.2=py37_0
   - readline=7.0=h7b6447c_5
   - requests=2.21.0=py37_0
+  - ripgrep=12.1.1=0
   - rope=0.11.0=py37_0
   - ruamel_yaml=0.15.46=py37h14c3975_0
   - scikit-image=0.14.1=py37he6710b0_0
-  - scikit-learn=0.20.1=py37hd81dba3_0
   - scipy=1.1.0=py37h7c811a0_2
   - seaborn=0.9.0=py37_0
   - secretstorage=3.1.0=py37_0
   - send2trash=1.5.0=py37_0
-  - setuptools=40.6.3=py37_0
   - simplegeneric=0.8.1=py37_2
   - singledispatch=3.4.0.3=py37_0
   - sip=4.19.8=py37hf484d3e_0
@@ -247,8 +242,15 @@ dependencies:
   - snowballstemmer=1.2.1=py37_0
   - sortedcollections=1.0.1=py37_0
   - sortedcontainers=2.1.0=py37_0
+  - soupsieve=2.2.1=pyhd3eb1b0_0
   - sphinx=1.8.2=py37_0
   - sphinxcontrib=1.0=py37_1
+  - sphinxcontrib-applehelp=1.0.2=pyhd3eb1b0_0
+  - sphinxcontrib-devhelp=1.0.2=pyhd3eb1b0_0
+  - sphinxcontrib-htmlhelp=2.0.0=pyhd3eb1b0_0
+  - sphinxcontrib-jsmath=1.0.1=pyhd3eb1b0_0
+  - sphinxcontrib-qthelp=1.0.3=pyhd3eb1b0_0
+  - sphinxcontrib-serializinghtml=1.1.5=pyhd3eb1b0_0
   - sphinxcontrib-websupport=1.1.0=py37_1
   - spyder=3.3.2=py37_0
   - spyder-kernels=0.3.0=py37_0
@@ -256,9 +258,11 @@ dependencies:
   - sqlite=3.26.0=h7b6447c_0
   - statsmodels=0.9.0=py37h035aef0_0
   - sympy=1.3=py37_0
+  - tbb=2021.4.0=hd09550d_0
   - tblib=1.3.2=py37_0
   - terminado=0.8.1=py37_1
   - testpath=0.4.2=py37_0
+  - threadpoolctl=2.2.0=pyh0d69192_0
   - tk=8.6.8=hbc83047_0
   - toolz=0.9.0=py37_0
   - tornado=5.1.1=py37h7b6447c_0
@@ -269,7 +273,6 @@ dependencies:
   - urllib3=1.24.1=py37_0
   - wcwidth=0.1.7=py37_0
   - webencodings=0.5.1=py37_1
-  - werkzeug=0.14.1=py37_0
   - wheel=0.32.3=py37_0
   - widgetsnbextension=3.4.2=py37_0
   - wrapt=1.10.11=py37h14c3975_2
@@ -281,45 +284,42 @@ dependencies:
   - yaml=0.1.7=had09818_2
   - zeromq=4.2.5=hf484d3e_1
   - zict=0.1.3=py37_0
+  - zipp=3.6.0=pyhd3eb1b0_0
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.3.7=h0b5b093_0
   - pip:
-    - absl-py==0.7.0
-    - appdirs==1.4.3
-    - astor==0.7.1
-    - black==19.10b0
-    - datajoint==0.11.1
-    - gast==0.2.2
-    - grpcio==1.19.0
-    - keras==2.2.4
-    - keras-applications==1.0.7
-    - keras-preprocessing==1.0.9
-    - kinematik==0.0b0
-    - libarchive-c==2.8
-    - lief==0.9.0
-    - markdown==3.0.1
-    - minio==4.0.11
-    - mock==2.0.0
-    - msgpack==0.5.6
-    - opencv-contrib-python==4.1.0.25
-    - pathspec==0.7.0
-    - pbr==5.1.3
-    - protobuf==3.7.0
-    - pycircstat==0.0.2
-    - pydot==1.4.1
-    - pygame==1.9.4
-    - pyglmnet==1.0.0
-    - pymysql==0.9.3
-    - pyopengl==3.1.0
-    - regex==2020.2.20
-    - ruamel.yaml.clib==0.2.0
-    - scikit-kinematics==0.8.1
-    - tables==3.4.4
-    - tensorboard==1.13.1
+    - absl-py==0.11.0
+    - astor==0.8.1
+    - bleach==1.5.0
+    - cachetools==5.2.0
+    - gast==0.4.0
+    - google-auth==2.9.1
+    - google-auth-oauthlib==0.4.6
+    - google-pasta==0.2.0
+    - grpcio==1.35.0
+    - html5lib==0.9999999
+    - importlib-metadata==4.12.0
+    - keras-applications==1.0.8
+    - keras-preprocessing==1.1.2
+    - markdown==3.4.1
+    - markupsafe==2.1.1
+    - numpy==1.21.6
+    - oauthlib==3.2.0
+    - pandas==1.1.2
+    - protobuf==3.14.0
+    - pyasn1==0.4.8
+    - pyasn1-modules==0.2.8
+    - requests-oauthlib==1.3.1
+    - rsa==4.9
+    - scikit-learn==1.0.1
+    - setuptools==52.0.0
+    - tensorboard==2.9.1
+    - tensorboard-data-server==0.6.1
+    - tensorboard-plugin-wit==1.8.1
     - tensorflow==1.13.1
     - tensorflow-estimator==1.13.0
+    - tensorflow-tensorboard==1.5.1
     - termcolor==1.1.0
-    - toml==0.10.0
-    - torch==1.2.0
-    - torchaudio==0.3.0
-    - typed-ast==1.4.1
+    - typing-extensions==4.3.0
+    - werkzeug==2.2.1
+prefix: /home/alessandro/anaconda3/envs/deepdraw_github
