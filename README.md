@@ -14,7 +14,7 @@ We found that:
 - neural networks trained to predict the limb position and velocity can better predict the neural activity in both areas with the neural predictability correlated with the network's task performance.
 - task-driven models can better predict neural activity than untrained models only for active movements, but not for passive ones, suggesting there might be a top-down modulation during goal-directed movements.
 
-Check out our manuscript, if you want to learn more: [Task-driven neural network models predict neural dynamics of proprioception](https://www.biorxiv.org/content/10.1101/2023.06.15.545147v1.full.pdf). 
+Check out our manuscript, if you want to learn more: [Task-driven neural network models predict neural dynamics of proprioception](https://www.cell.com/cell/pdf/S0092-8674(24)00239-3.pdf). 
 
 Here we share the code to reproduce the results. Please note that the code was developed and tested in Linux (see: [Installation, software & requirements](#installation)).
 
