@@ -81,11 +81,11 @@ If you find this code or ideas presented in our work useful, please cite:
 [Task-driven neural network models predict neural dynamics of proprioception](https://www.cell.com/cell/pdf/S0092-8674(24)00239-3.pdf), Cell (2024) by Alessandro Marin Vargas*, Axel Bisi*, Alberto S. Chiappa, Christopher Versteeg, Lee E. Miller, Alexander Mathis.
 
 ```
-@article{vargas2023task,
+@article{vargas2024task,
   title={Task-driven neural network models predict neural dynamics of proprioception},
-  author={Vargas, Alessandro Marin and Bisi, Axel and Chiappa, Alberto S and Versteeg, Chris and Miller, Lee E and Mathis, Alexander},
+  author={{Marin Vargas}, Alessandro and Bisi, Axel and Chiappa, Alberto S and Versteeg, Chris and Miller, Lee E and Mathis, Alexander},
   journal={Cell},
-  year={2023},
+  year={2024},
   publisher={Elsevier}
 }
 ```
