@@ -14,7 +14,7 @@ We found that:
 - neural networks trained to predict the limb position and velocity can better predict the neural activity in both areas with the neural predictability correlated with the network's task performance.
 - task-driven models can better predict neural activity than untrained models only for active movements, but not for passive ones, suggesting there might be a top-down modulation during goal-directed movements.
 
-Check out our manuscript, if you want to learn more: [Task-driven neural network models predict neural dynamics of proprioception](https://www.biorxiv.org/content/10.1101/2023.06.15.545147v1.full.pdf). 
+Check out our manuscript, if you want to learn more: [Task-driven neural network models predict neural dynamics of proprioception](https://www.cell.com/cell/pdf/S0092-8674(24)00239-3.pdf). 
 
 Here we share the code to reproduce the results. Please note that the code was developed and tested in Linux (see: [Installation, software & requirements](#installation)).
 
@@ -78,16 +78,14 @@ We acknowledge the following code repositories: [DeepLabCut](https://github.com/
 
 If you find this code or ideas presented in our work useful, please cite:
 
-[Task-driven neural network models predict neural dynamics of proprioception](https://www.biorxiv.org/content/10.1101/2023.06.15.545147v1.full.pdf) 
-by Alessandro Marin Vargas*, Axel Bisi*, Alberto S. Chiappa, Christopher Versteeg, Lee E. Miller, Alexander Mathis.
+[Task-driven neural network models predict neural dynamics of proprioception](https://www.cell.com/cell/pdf/S0092-8674(24)00239-3.pdf), Cell (2024) by Alessandro Marin Vargas*, Axel Bisi*, Alberto S. Chiappa, Christopher Versteeg, Lee E. Miller, Alexander Mathis.
 
 ```
-@article{vargas2023task,
+@article{vargas2024task,
   title={Task-driven neural network models predict neural dynamics of proprioception},
-  author={Vargas, Alessandro Marin and Bisi, Axel and Chiappa, Alberto Silvio and Versteeg, Christopher and Miller, Lee E and Mathis, Alexander},
-  journal={bioRxiv},
-  pages={2023--06},
-  year={2023},
-  publisher={Cold Spring Harbor Laboratory}
+  author={{Marin Vargas}, Alessandro and Bisi, Axel and Chiappa, Alberto S and Versteeg, Chris and Miller, Lee E and Mathis, Alexander},
+  journal={Cell},
+  year={2024},
+  publisher={Elsevier}
 }
 ```
